@@ -93,7 +93,7 @@ Cookie、Session、Token 不是三个互斥名词，Cookie 是「浏览器自动
 ## 当前进度（如实标注）
 
 - [x] 阶段 0：项目骨架 + 依赖 + MySQL 编排 + Flyway
-- [x] 阶段 1：TodoList 分层 + MySQL 持久化（`/api/todos` CRUD）
+- [x] 阶段 1：TodoList 分层 + MySQL 持久化（2026-09-19 完成测试、真实 HTTP 和应用重启验收，见 [验收记录](docs/stage1-acceptance.md)）
 - [x] 阶段 2a：用户注册 / 登录（仅校验账密）/ 资料 / 改密（BCrypt，`spring-security-crypto`）
 - [ ] 阶段 2b：Todo 归属当前用户 + 越权防护（`CurrentUser` 已就位，待把 userId 绑定进 todo）
 - [ ] 阶段 3：Cookie / Session / Token 三种认证方案实验（目录与测试占位已就位）
@@ -114,6 +114,21 @@ mvnw.cmd test        # Windows
 - `TodoApiTest`：Todo 增删改查 + 非法输入 + 不存在的 id
 - `UserAuthTest`：注册 / 登录 / 重复用户名 / 密码错误 / 未登录 401
 - `auth/{Cookie,Session,Token}AuthTest`：阶段 3 占位，暂 `@Disabled`
+
+### 第一阶段复验（Windows PowerShell）
+
+先启动 MySQL，再执行：
+
+```powershell
+.\mvnw.cmd verify
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-stage1.ps1
+```
+
+第二条命令只为本次进程放行脚本，不修改系统执行策略。脚本在 `127.0.0.1:18080` 启动打包后的应用，
+创建 Todo 后停止并重新启动应用，确认 MySQL 数据仍可读取，再验证修改、删除及错误响应。
+端口被占用时可加 `-Port 18081`。完成后清理本次创建的 Todo 并停止测试进程，日志保存在 `target/`。
+
+第一阶段里程碑标签：`stage1-todo`。当前版本保留了已有的用户模块代码，但第二、三阶段仍未完成。
 
 ## 已知问题
 
