@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: learn-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3307/learn_backend?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:app}
+    password: ${DB_PASSWORD:app123456}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# MyBatis
+mybatis:
+  # 复杂 SQL 的 XML 映射文件放 src/main/resources/mapper/
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    # 数据库下划线字段自动映射为驼峰属性：created_at -> createdAt
+    map-underscore-to-camel-case: true
+    # 打印实际执行的 SQL，便于观察（阶段学习用，正式环境可移除）
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.learn.learnbackend: debug
+
+# 认证相关配置（阶段 3 使用，密钥只放环境变量，勿硬编码提交）
+auth:
+  cookie-secret: ${COOKIE_SECRET:}
+  jwt-secret: ${JWT_SECRET:}
