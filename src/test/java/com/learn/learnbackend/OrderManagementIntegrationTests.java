@@ -4,13 +4,21 @@ import com.learn.learnbackend.model.CustomerOrder;
 import com.learn.learnbackend.model.OrderSort;
 import com.learn.learnbackend.model.Product;
 import com.learn.learnbackend.model.ProductSort;
+import com.learn.learnbackend.model.PageResult;
 import com.learn.learnbackend.service.OrderService;
 import com.learn.learnbackend.service.ProductService;
 import com.learn.learnbackend.util.JdbcUtil;
+import com.alibaba.druid.pool.DruidDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import javax.sql.DataSource;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -21,8 +29,10 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** 使用 H2（MySQL 兼容模式）验证 JDBC CRUD、校验、事务、排序和 SQL 注入防护。 */
+/** 使用 H2（MySQL 兼容模式）验证 MyBatis、Druid、分页、HTTP 和事务。 */
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:orders;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
@@ -33,6 +43,8 @@ class OrderManagementIntegrationTests {
     @Autowired ProductService products;
     @Autowired OrderService orders;
     @Autowired JdbcUtil jdbc;
+    @Autowired DataSource dataSource;
+    @Autowired WebApplicationContext webContext;
 
     @BeforeEach
     void prepareTables() throws Exception {
@@ -110,7 +122,7 @@ class OrderManagementIntegrationTests {
     @Test
     void failedOrderTotalWriteRollsBackHeaderAndItems() throws Exception {
         Product costly = products.create("高价设备", new BigDecimal("9999999999.99"));
-        assertThrows(JdbcUtil.JdbcOperationException.class, () -> orders.create(Map.of(costly.id(), 10000)));
+        assertThrows(DataIntegrityViolationException.class, () -> orders.create(Map.of(costly.id(), 10000)));
         try (Connection c = jdbc.getConnection(); Statement s = c.createStatement(); var rs = s.executeQuery("SELECT COUNT(*) FROM orders")) {
             assertTrue(rs.next());
             assertEquals(0, rs.getInt(1), "订单总价写入失败时，订单主表也应回滚");
@@ -119,5 +131,78 @@ class OrderManagementIntegrationTests {
             assertTrue(rs.next());
             assertEquals(0, rs.getInt(1), "事务回滚应同时清除已插入的订单明细");
         }
+    }
+
+    @Test
+    void pagesAreSortedAndCountedInDatabase() {
+        assertInstanceOf(DruidDataSource.class, dataSource);
+        Product first = products.create("A", new BigDecimal("30.00"));
+        products.create("B", new BigDecimal("10.00"));
+        products.create("C", new BigDecimal("20.00"));
+        PageResult<Product> page = products.findPage(ProductSort.ID_ASC, false, 0, 2);
+        assertEquals(3, page.total());
+        assertEquals(2, page.totalPages());
+        assertEquals(first.id(), page.items().getFirst().id());
+        assertEquals(1, products.findPage(ProductSort.PRICE_ASC, false, 1, 2).items().size());
+        assertTrue(products.findPage(ProductSort.ID_ASC, false, 9, 2).items().isEmpty());
+        products.delete(first.id());
+        assertEquals(2, products.findPage(ProductSort.ID_ASC, false, 0, 10).total());
+        assertEquals(3, products.findPage(ProductSort.ID_ASC, true, 0, 10).total());
+        Product remaining = products.findPage(ProductSort.PRICE_ASC, false, 0, 1).items().getFirst();
+        CustomerOrder older = orders.create(Map.of(remaining.id(), 1));
+        CustomerOrder newer = orders.create(Map.of(remaining.id(), 2));
+        PageResult<CustomerOrder> orderPage = orders.findPage(OrderSort.PRICE_DESC, 0, 1);
+        assertEquals(2, orderPage.total());
+        assertEquals(2, orderPage.totalPages());
+        assertEquals(newer.id(), orderPage.items().getFirst().id());
+        assertEquals(older.id(), orders.findPage(OrderSort.PRICE_ASC, 0, 1).items().getFirst().id());
+        assertThrows(IllegalArgumentException.class, () -> products.findPage(ProductSort.ID_ASC, false, -1, 10));
+        assertThrows(IllegalArgumentException.class, () -> orders.findPage(OrderSort.TIME_ASC, 0, 101));
+    }
+
+    @Test
+    void httpRoutesExposePagedCrudAndValidation() throws Exception {
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext).build();
+        mvc.perform(post("/api/products")
+                        .contentType("application/json")
+                        .content("{\"name\":\"展示架\",\"price\":25.50}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("展示架"));
+        Product product = products.findAll(ProductSort.ID_ASC, false).getFirst();
+        mvc.perform(get("/api/products").param("page", "0").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(product.id()));
+        mvc.perform(get("/api/products").param("size", "0"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(get("/api/products").param("sort", "price;DROP TABLE products"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/products/999999"))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/products").contentType("application/json")
+                        .content("{\"name\":\"\",\"price\":-1}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("商品名称不能为空"));
+        mvc.perform(post("/api/orders").contentType("application/json")
+                        .content("{\"items\":{\"" + product.id() + "\":2}}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.totalPrice").value(51.0))
+                .andExpect(jsonPath("$.items[0].productName").value("展示架"));
+        mvc.perform(get("/api/orders").param("page", "0").param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPages").value(1));
+        long orderId = orders.findAll(OrderSort.TIME_ASC).getFirst().id();
+        mvc.perform(get("/api/orders/" + orderId))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].quantity").value(2));
+        mvc.perform(put("/api/products/" + product.id()).contentType("application/json")
+                        .content("{\"name\":\"新展示架\",\"price\":30.00}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("新展示架"));
+        assertEquals("展示架", orders.findById(orderId).orElseThrow().items().getFirst().productName());
+        mvc.perform(put("/api/orders/" + orderId).contentType("application/json")
+                        .content("{\"items\":{\"" + product.id() + "\":3}}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrice").value(90.0));
+        mvc.perform(delete("/api/products/" + product.id())).andExpect(status().isNoContent());
+        mvc.perform(post("/api/orders").contentType("application/json")
+                        .content("{\"items\":{\"" + product.id() + "\":1}}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/orders/" + orderId)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/orders/" + orderId)).andExpect(status().isNotFound());
     }
 }
