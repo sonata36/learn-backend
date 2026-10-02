@@ -24,7 +24,7 @@
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-note"><span class="note-spark">✦</span><strong>把每一笔采购记清楚</strong><p>从商品建档到订单归档，都在这里完成。</p></div>
-        <div class="sidebar-version">STUDIO LEDGER <span>V2.1</span></div>
+        <div class="sidebar-version">STUDIO LEDGER <span>V2.1.1</span></div>
       </div>
     </aside>
 
@@ -61,7 +61,7 @@
 
         <section id="ordersView" class="view" aria-labelledby="ordersTitle" hidden>
           <div class="page-heading"><div><span class="section-kicker">PURCHASES</span><h1 id="ordersTitle">订单管理</h1><p>记录采购明细，随时追溯成交时的商品与价格。</p></div><button class="button button-primary" id="newOrderButton">＋ 创建订单</button></div>
-          <div class="panel data-panel"><div class="table-toolbar"><div><h2>订单列表 <span class="count-pill" id="orderCount">0</span></h2><p>点击“查看详情”可查看完整商品明细</p></div><label class="select-wrap"><span class="sr-only">订单排序</span><select id="orderSort"><option value="timeDesc">最新下单</option><option value="timeAsc">最早下单</option><option value="priceDesc">总价从高到低</option><option value="priceAsc">总价从低到高</option></select></label></div><div class="table-scroll"><table><thead><tr><th>订单编号</th><th>下单时间</th><th>订单金额</th><th class="actions-heading">操作</th></tr></thead><tbody id="orderRows"></tbody></table></div><div id="orderEmpty" class="empty-state" hidden><span>▤</span><strong>还没有采购订单</strong><p>创建订单后，采购记录会显示在这里。</p></div><div class="pagination"><span id="orderPageInfo">—</span><div><button id="orderPrev" class="page-button" aria-label="上一页">←</button><button id="orderNext" class="page-button" aria-label="下一页">→</button></div></div></div>
+          <div class="panel data-panel"><div class="table-toolbar"><div><h2>订单列表 <span class="count-pill" id="orderCount">0</span></h2><p>已删除订单仍保留下单时间、金额和商品明细</p></div><label class="select-wrap"><span class="sr-only">订单排序</span><select id="orderSort"><option value="idAsc">编号升序</option><option value="timeDesc">最新下单</option><option value="timeAsc">最早下单</option><option value="priceDesc">总价从高到低</option><option value="priceAsc">总价从低到高</option></select></label></div><div class="table-scroll"><table><thead><tr><th>订单编号</th><th>下单时间</th><th>订单金额</th><th>状态</th><th class="actions-heading">操作</th></tr></thead><tbody id="orderRows"></tbody></table></div><div id="orderEmpty" class="empty-state" hidden><span>▤</span><strong>还没有采购订单</strong><p>创建订单后，采购记录会显示在这里。</p></div><div class="pagination"><span id="orderPageInfo">—</span><div><button id="orderPrev" class="page-button" aria-label="上一页">←</button><button id="orderNext" class="page-button" aria-label="下一页">→</button></div></div></div>
         </section>
       </main>
       <footer class="site-footer"><span>STUDIO LEDGER · 为创作现场认真记账</span><span>商品 · 订单 · 历史快照</span></footer>

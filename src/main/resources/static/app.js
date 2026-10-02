@@ -9,7 +9,7 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => 
 const state = {
   view: "overview",
   products: { page: 0, size: 10, sort: "idAsc", includeInactive: false, data: null },
-  orders: { page: 0, size: 10, sort: "timeDesc", data: null },
+  orders: { page: 0, size: 10, sort: "idAsc", data: null },
   availableProducts: [],
   detailOrderId: null,
   toastTimer: null
@@ -85,7 +85,7 @@ async function loadOverview() {
     $("statOrders").textContent = orders.total.toLocaleString("zh-CN");
     $("statLatest").textContent = orders.items.length ? money(orders.items[0].totalPrice) : "—";
     $("recentOrders").innerHTML = orders.items.length ? orders.items.map((order) => `
-      <div class="recent-item"><span class="recent-badge">▤</span><span class="recent-text"><strong>订单 #${escapeHtml(order.id)}</strong><small>${escapeHtml(dateText(order.orderedAt))}</small></span><span class="recent-price">${money(order.totalPrice)}</span></div>
+      <div class="recent-item"><span class="recent-badge">▤</span><span class="recent-text"><strong>订单 #${escapeHtml(order.id)}</strong><small>${escapeHtml(dateText(order.orderedAt))}${order.deletedAt ? " · 已删除" : ""}</small></span><span class="recent-price">${money(order.totalPrice)}</span></div>
     `).join("") : '<p class="empty-copy">还没有订单。创建第一笔采购记录吧。</p>';
   } catch (error) {
     $("statProducts").textContent = "—";
@@ -126,7 +126,7 @@ async function loadProducts() {
 
 async function loadOrders() {
   const query = state.orders;
-  $("orderRows").innerHTML = '<tr><td colspan="4" class="loading-copy">正在读取订单…</td></tr>';
+  $("orderRows").innerHTML = '<tr><td colspan="5" class="loading-copy">正在读取订单…</td></tr>';
   try {
     const params = new URLSearchParams({ page: String(query.page), size: String(query.size), sort: query.sort });
     const data = await api("orders?" + params);
@@ -138,10 +138,10 @@ async function loadOrders() {
     $("orderNext").disabled = data.page + 1 >= data.totalPages;
     $("orderEmpty").hidden = data.items.length > 0;
     $("orderRows").innerHTML = data.items.map((order) => `
-      <tr><td><span class="id-chip">#${escapeHtml(order.id)}</span></td><td>${escapeHtml(dateText(order.orderedAt))}</td><td><strong>${money(order.totalPrice)}</strong></td><td><div class="table-actions"><button class="table-action" data-action="detail-order" data-id="${escapeHtml(order.id)}">查看详情</button><button class="table-action" data-action="edit-order" data-id="${escapeHtml(order.id)}">修改</button><button class="table-action danger" data-action="delete-order" data-id="${escapeHtml(order.id)}">删除</button></div></td></tr>
+      <tr class="${order.deletedAt ? "deleted-row" : ""}"><td><span class="id-chip">#${escapeHtml(order.id)}</span></td><td>${escapeHtml(dateText(order.orderedAt))}</td><td><strong>${money(order.totalPrice)}</strong></td><td><span class="status-pill ${order.deletedAt ? "deleted" : ""}">${order.deletedAt ? "已删除" : "有效"}</span></td><td><div class="table-actions"><button class="table-action" data-action="detail-order" data-id="${escapeHtml(order.id)}">查看详情</button>${order.deletedAt ? "" : `<button class="table-action" data-action="edit-order" data-id="${escapeHtml(order.id)}">修改</button><button class="table-action danger" data-action="delete-order" data-id="${escapeHtml(order.id)}">删除</button>`}</div></td></tr>
     `).join("");
   } catch (error) {
-    $("orderRows").innerHTML = '<tr><td colspan="4" class="loading-copy">加载失败，请检查连接后重试。</td></tr>';
+    $("orderRows").innerHTML = '<tr><td colspan="5" class="loading-copy">加载失败，请检查连接后重试。</td></tr>';
     showError(error);
   }
 }
@@ -224,6 +224,7 @@ async function openOrderDialog(id = null) {
     state.availableProducts = products;
     if (!products.length) { notify("暂无在售商品，请先新增商品", true); navigate("products"); return; }
     if (order) {
+      if (order.deletedAt) throw new Error("订单已删除，不能修改");
       let unavailable = false;
       order.items.forEach((item) => {
         const active = products.some((product) => product.id === item.productId);
@@ -275,8 +276,9 @@ async function openOrderDetail(id) {
     const order = await api("orders/" + id);
     state.detailOrderId = id;
     $("detailTitle").textContent = `订单 #${order.id}`;
+    $("detailEdit").hidden = Boolean(order.deletedAt);
     $("detailContent").innerHTML = `
-      <div class="detail-meta"><div class="detail-meta-item"><span>订单编号</span><strong>#${escapeHtml(order.id)}</strong></div><div class="detail-meta-item"><span>下单时间</span><strong>${escapeHtml(dateText(order.orderedAt))}</strong></div></div>
+      <div class="detail-meta"><div class="detail-meta-item"><span>订单编号</span><strong>#${escapeHtml(order.id)}</strong></div><div class="detail-meta-item"><span>下单时间</span><strong>${escapeHtml(dateText(order.orderedAt))}</strong></div><div class="detail-meta-item"><span>订单状态</span><strong>${order.deletedAt ? "已删除" : "有效"}</strong></div>${order.deletedAt ? `<div class="detail-meta-item"><span>删除时间</span><strong>${escapeHtml(dateText(order.deletedAt))}</strong></div>` : ""}</div>
       <div class="detail-section-label">商品明细 · ${order.items.length} 件商品</div>
       ${order.items.map((item) => `<div class="detail-line"><span class="detail-line-symbol">▦</span><span class="detail-line-body"><strong>${escapeHtml(item.productName)}</strong><small>编号 #${escapeHtml(item.productId)} · ${money(item.unitPrice)} × ${escapeHtml(item.quantity)}</small></span><span class="detail-line-price">${money(Number(item.unitPrice) * item.quantity)}</span></div>`).join("")}
       <div class="detail-total"><span>订单总价</span><strong>${money(order.totalPrice)}</strong></div>`;
@@ -316,8 +318,8 @@ async function handleOrderAction(event) {
   if (button.dataset.action === "detail-order") return openOrderDetail(id);
   if (button.dataset.action === "edit-order") return openOrderDialog(id);
   if (button.dataset.action === "delete-order") {
-    if (!await confirmAction("删除这个订单？", "订单和商品明细将被永久删除，此操作不能撤销。")) return;
-    try { await api("orders/" + id, { method: "DELETE" }); notify("订单删除成功"); loadOrders(); }
+    if (!await confirmAction("标记删除这个订单？", "订单将标记为已删除；下单时间、金额和商品明细仍可查看，之后不能修改。")) return;
+    try { await api("orders/" + id, { method: "DELETE" }); notify("订单已标记为删除"); loadOrders(); }
     catch (error) { showError(error); }
   }
 }

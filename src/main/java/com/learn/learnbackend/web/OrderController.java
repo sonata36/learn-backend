@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Locale;
 import java.util.Map;
 
-/** 订单 HTTP 接口；总价只由服务器根据商品价格计算。 */
+/** 订单 HTTP 接口；总价由服务端计算，删除只标记状态并保留历史数据。 */
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -52,11 +52,12 @@ public class OrderController {
 
     private OrderSort parseSort(String sort) {
         return switch (sort.toLowerCase(Locale.ROOT)) {
+            case "idasc" -> OrderSort.ID_ASC;
             case "timeasc" -> OrderSort.TIME_ASC;
             case "timedesc" -> OrderSort.TIME_DESC;
             case "priceasc" -> OrderSort.PRICE_ASC;
             case "pricedesc" -> OrderSort.PRICE_DESC;
-            default -> throw new IllegalArgumentException("sort 只能是 timeAsc、timeDesc、priceAsc、priceDesc");
+            default -> throw new IllegalArgumentException("sort 只能是 idAsc、timeAsc、timeDesc、priceAsc、priceDesc");
         };
     }
 

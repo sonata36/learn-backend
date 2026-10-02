@@ -41,7 +41,7 @@ public class OrderDao {
 
     /** 更新订单汇总金额。 */
     public void updateTotal(Connection c, long orderId, BigDecimal total) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("UPDATE orders SET total_price = ? WHERE id = ?")) {
+        try (PreparedStatement ps = c.prepareStatement("UPDATE orders SET total_price = ? WHERE id = ? AND deleted_at IS NULL")) {
             ps.setBigDecimal(1, total); ps.setLong(2, orderId); ps.executeUpdate();
         }
     }
@@ -54,30 +54,39 @@ public class OrderDao {
 
     /** 使用已有连接查询订单，支持在事务中读取刚创建或刚更新的订单。 */
     public Optional<CustomerOrder> findById(Connection c, long id) throws SQLException {
-        String sql = "SELECT id, ordered_at, total_price FROM orders WHERE id = ?";
+        String sql = "SELECT id, ordered_at, total_price, deleted_at FROM orders WHERE id = ?";
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return Optional.empty();
                 Timestamp timestamp = rs.getTimestamp("ordered_at");
-                return Optional.of(new CustomerOrder(rs.getLong("id"), timestamp.toLocalDateTime(), rs.getBigDecimal("total_price"), findItems(c, id)));
+                Timestamp deletedAt = rs.getTimestamp("deleted_at");
+                return Optional.of(new CustomerOrder(rs.getLong("id"), timestamp.toLocalDateTime(),
+                        rs.getBigDecimal("total_price"), deletedAt == null ? null : deletedAt.toLocalDateTime(), findItems(c, id)));
             }
         }
     }
 
     /** 按白名单的下单时间或总价排序查询订单摘要。 */
     public List<CustomerOrder> findAll(OrderSort sort) {
-        String sql = "SELECT id, ordered_at, total_price FROM orders ORDER BY " + sort.sql() + ", id ASC";
+        String sql = "SELECT id, ordered_at, total_price, deleted_at FROM orders ORDER BY " + sort.sql() + ", id ASC";
         try (Connection c = jdbc.getConnection(); PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             List<CustomerOrder> result = new ArrayList<>();
-            while (rs.next()) result.add(new CustomerOrder(rs.getLong("id"), rs.getTimestamp("ordered_at").toLocalDateTime(), rs.getBigDecimal("total_price"), List.of()));
+            while (rs.next()) {
+                Timestamp deletedAt = rs.getTimestamp("deleted_at");
+                result.add(new CustomerOrder(rs.getLong("id"), rs.getTimestamp("ordered_at").toLocalDateTime(),
+                        rs.getBigDecimal("total_price"), deletedAt == null ? null : deletedAt.toLocalDateTime(), List.of()));
+            }
             return result;
         } catch (SQLException e) { throw failure("查询订单列表失败", e); }
     }
 
-    /** 在调用方事务内删除订单头，明细由外键级联删除。 */
+    /** 在调用方事务内标记删除，保留订单与明细。 */
     public boolean delete(Connection c, long id) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("DELETE FROM orders WHERE id = ?")) { ps.setLong(1, id); return ps.executeUpdate() == 1; }
+        try (PreparedStatement ps = c.prepareStatement("UPDATE orders SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL")) {
+            ps.setLong(1, id);
+            return ps.executeUpdate() == 1;
+        }
     }
 
     /** 清除订单原有明细，供订单更新事务重建明细使用。 */

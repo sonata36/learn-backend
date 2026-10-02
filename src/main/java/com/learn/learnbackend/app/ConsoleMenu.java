@@ -28,7 +28,7 @@ public class ConsoleMenu implements CommandLineRunner {
             while (true) {
                 System.out.println("\n=== 工作室订单记账 ===");
                 System.out.println("1 商品列表  2 新增商品  3 修改商品  4 停用商品");
-                System.out.println("5 创建订单  6 订单列表  7 订单详情  8 修改订单商品  9 删除订单  0 退出");
+                System.out.println("5 创建订单  6 订单列表  7 订单详情  8 修改订单商品  9 标记删除订单  0 退出");
                 System.out.print("请选择: ");
                 String command = input.nextLine().trim();
                 if (command.equals("0")) return;
@@ -63,7 +63,7 @@ public class ConsoleMenu implements CommandLineRunner {
                 System.out.println("订单创建成功，订单编号：" + order.id() + "，总价：" + order.totalPrice());
             }
             case "6" -> {
-                var orderList = orders.findAll(orderSort(ask(in, "排序 timeAsc/timeDesc/priceAsc/priceDesc: ")));
+                var orderList = orders.findAll(orderSort(ask(in, "排序 idAsc/timeAsc/timeDesc/priceAsc/priceDesc: ")));
                 if (orderList.isEmpty()) System.out.println("暂无订单");
                 else orderList.forEach(this::printOrderSummary);
             }
@@ -78,7 +78,7 @@ public class ConsoleMenu implements CommandLineRunner {
             }
             case "9" -> {
                 orders.delete(longValue(ask(in, "要删除的订单编号: ")));
-                System.out.println("订单删除成功");
+                System.out.println("订单已标记为删除，历史明细仍可查询");
             }
             default -> System.out.println("未知选项，请输入 0 至 9 之间的菜单编号");
         }
@@ -97,6 +97,7 @@ public class ConsoleMenu implements CommandLineRunner {
 
     private OrderSort orderSort(String value) {
         return switch (value.trim().toLowerCase()) {
+            case "idasc" -> OrderSort.ID_ASC;
             case "timeasc" -> OrderSort.TIME_ASC; case "timedesc" -> OrderSort.TIME_DESC;
             case "priceasc" -> OrderSort.PRICE_ASC; case "pricedesc" -> OrderSort.PRICE_DESC;
             default -> throw new IllegalArgumentException("排序值无效");
@@ -105,8 +106,8 @@ public class ConsoleMenu implements CommandLineRunner {
 
     /** 以简短的一行格式显示订单列表摘要。 */
     private void printOrderSummary(CustomerOrder order) {
-        System.out.printf("订单编号：%d | 下单时间：%s | 总价：%s%n",
-                order.id(), order.orderedAt(), order.totalPrice());
+        System.out.printf("订单编号：%d | 下单时间：%s | 总价：%s | 状态：%s%n",
+                order.id(), order.orderedAt(), order.totalPrice(), order.deletedAt() == null ? "有效" : "已删除");
     }
 
     /** 分行显示订单头和商品明细，避免 record 的默认字符串过长。 */
@@ -115,6 +116,8 @@ public class ConsoleMenu implements CommandLineRunner {
         System.out.println("订单编号：" + order.id());
         System.out.println("下单时间：" + order.orderedAt());
         System.out.println("订单总价：" + order.totalPrice());
+        System.out.println("状态：" + (order.deletedAt() == null ? "有效" : "已删除"));
+        if (order.deletedAt() != null) System.out.println("删除时间：" + order.deletedAt());
         System.out.println("商品明细：");
         if (order.items().isEmpty()) {
             System.out.println("  （无商品明细）");

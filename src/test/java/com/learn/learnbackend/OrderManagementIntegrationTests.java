@@ -89,7 +89,8 @@ class OrderManagementIntegrationTests {
         assertEquals(new BigDecimal("106.50"), updated.totalPrice());
         assertEquals(1, updated.items().size());
         orders.delete(order.id());
-        assertTrue(orders.findById(order.id()).isEmpty());
+        assertNotNull(orders.findById(order.id()).orElseThrow().deletedAt());
+        assertEquals(1, orders.findById(order.id()).orElseThrow().items().size());
     }
 
     @Test
@@ -203,6 +204,8 @@ class OrderManagementIntegrationTests {
                         .content("{\"items\":{\"" + product.id() + "\":1}}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(delete("/api/orders/" + orderId)).andExpect(status().isNoContent());
-        mvc.perform(get("/api/orders/" + orderId)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/orders/" + orderId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.deletedAt").isNotEmpty())
+                .andExpect(jsonPath("$.items[0].quantity").value(3));
     }
 }

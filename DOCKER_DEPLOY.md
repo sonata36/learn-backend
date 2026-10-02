@@ -74,7 +74,19 @@ docker compose down             # 停止并删除容器及网络，保留数据�
 
 数据库初始化脚本只在 **数据库卷首次为空** 时运行。以后修改建表脚本或 `.env` 中的 MySQL 密码，不会自动改造已存在的数据库或用户；要升级数据库结构应使用迁移脚本。
 
-## 7. 常见问题
+## 7. 已有数据库升级订单软删除
+
+已有数据卷不会重新执行建表脚本。升级前先备份数据库，然后在项目根目录执行一次：
+
+```powershell
+Get-Content -Raw src/main/resources/db/migration-2.1.1-soft-delete.sql |
+  docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -u studio_app studio_order'
+docker compose up --build -d --no-deps app
+```
+
+迁移只增加 `orders.deleted_at` 字段，不清理原有订单。更新后的“删除订单”会保留金额与商品明细；此前已物理删除的订单无法通过迁移恢复。
+
+## 8. 常见问题
 
 | 现象 | 处理 |
 | --- | --- |

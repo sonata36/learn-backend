@@ -147,6 +147,9 @@ td strong{font-weight:650;color:#1d3426}
 .status-pill:before{content:"";width:5px;height:5px;border-radius:50%;background:#78b88d}
 .status-pill.inactive{background:#f0f0ed;color:#899389}
 .status-pill.inactive:before{background:#a7afa6}
+.status-pill.deleted{background:#fff0eb;color:#aa604d}
+.status-pill.deleted:before{background:#c9816f}
+.deleted-row .id-chip,.deleted-row td strong{color:#8a948c}
 .pagination{min-height:60px;padding:0 25px;border-top:1px solid #edf1eb;display:flex;align-items:center;justify-content:space-between;color:#92a096;font-size:11px}
 .pagination>div{display:flex;gap:6px}
 .page-button{width:31px;height:31px;border:1px solid #e2e9e0;background:#fff;border-radius:7px;color:#527259}

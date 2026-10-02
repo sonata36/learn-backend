@@ -42,7 +42,8 @@ public class OrderService {
     /** 替换订单商品；任何写入失败均回滚到修改前。 */
     @Transactional
     public CustomerOrder update(long orderId, Map<Long, Integer> quantities) {
-        if (orders.findById(orderId) == null) throw new IllegalArgumentException("订单不存在: " + orderId);
+        if (orders.findActiveForUpdate(orderId) == null)
+            throw new IllegalArgumentException("订单不存在或已删除: " + orderId);
         List<OrderItem> items = validatedItems(quantities);
         orders.deleteItems(orderId);
         for (OrderItem item : items) orders.insertItem(orderId, item);
@@ -55,7 +56,7 @@ public class OrderService {
     public Optional<CustomerOrder> findById(long id) {
         OrderMapper.OrderHeader row = orders.findById(id);
         return row == null ? Optional.empty() : Optional.of(
-                new CustomerOrder(row.id(), row.orderedAt(), row.totalPrice(), orders.findItems(id)));
+                new CustomerOrder(row.id(), row.orderedAt(), row.totalPrice(), row.deletedAt(), orders.findItems(id)));
     }
 
     public List<CustomerOrder> findAll(OrderSort sort) {
@@ -70,14 +71,14 @@ public class OrderService {
                 page, size, orders.count());
     }
 
-    /** 外键级联删除明细。 */
+    /** 软删除订单；订单头、下单时间、成交金额与商品快照均保留。 */
     @Transactional
     public void delete(long id) {
-        if (orders.delete(id) != 1) throw new IllegalArgumentException("订单不存在: " + id);
+        if (orders.markDeleted(id) != 1) throw new IllegalArgumentException("订单不存在或已删除: " + id);
     }
 
     private CustomerOrder summary(OrderMapper.OrderHeader row) {
-        return new CustomerOrder(row.id(), row.orderedAt(), row.totalPrice(), List.of());
+        return new CustomerOrder(row.id(), row.orderedAt(), row.totalPrice(), row.deletedAt(), List.of());
     }
 
     private List<OrderItem> validatedItems(Map<Long, Integer> quantities) {

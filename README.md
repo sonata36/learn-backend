@@ -1,6 +1,6 @@
 # 工作室订单管理系统
 
-当前版本：**2.1.0**。在 2.0.0 的 MyBatis、Druid、分页和 HTTP API 基础上，加入前端可视化页面及 Docker Compose 部署配置。
+当前版本：**2.1.1**。在 2.1.0 的前端可视化页面和 Docker Compose 部署基础上，修复订单删除会清除历史记录的问题。
 
 Java 21 + Spring Boot 4 的商品与订单记账项目。当前业务读写使用 **MyBatis**，数据库连接由 **Druid** 管理，提供 REST API 和可选的控制台菜单。MySQL 持久化数据；测试使用 H2 的 MySQL 兼容模式。原有 `dao/` 与 `util/JdbcUtil` 保留为 1.0.0 阶段的 JDBC 学习代码，当前 Service 不再调用它们。
 
@@ -20,13 +20,15 @@ $env:DB_PASSWORD = "你的 MySQL 密码"
 
 ## 网页界面
 
-启动后在浏览器打开 `http://localhost:8080/`。页面提供总览、商品新增/修改/停用、商品排序分页、订单创建/修改/删除、订单排序分页和明细查看。页面使用浏览器原生 HTML、CSS、JavaScript，无需安装 Node.js 或单独构建前端。
+启动后在浏览器打开 `http://localhost:8080/`。页面提供总览、商品新增/修改/停用、商品排序分页、订单创建/修改/标记删除、订单排序分页和明细查看。已删除订单会继续显示状态、下单时间、金额和商品快照，但不能再修改。页面使用浏览器原生 HTML、CSS、JavaScript，无需安装 Node.js 或单独构建前端。
 
 前端文件位于 `src/main/resources/static/`，构建时会进入 Spring Boot JAR。页面用相对于当前站点的 `api/` 地址访问后端；之后放入 Docker 时可让前后端通过同一个服务端口访问，无需修改浏览器端 API 地址。数据库连接需用容器可访问的 `DB_URL`，不能在容器里把 `localhost` 当作宿主机 MySQL。
 
 ## Docker Desktop 部署
 
 项目已提供 `Dockerfile`、`compose.yaml` 和 `.env.example`，可一起启动应用与 MySQL。PowerShell 下的配置、启动、日志、数据持久化和故障排查步骤见 [Docker 部署指南](DOCKER_DEPLOY.md)。
+
+已有数据库升级到订单软删除功能时，先执行一次 [迁移脚本](src/main/resources/db/migration-2.1.1-soft-delete.sql)，再重新构建应用。新建数据库直接使用已更新的建表脚本。不要删除 Docker 数据卷，否则已有订单无法保留。
 
 ## HTTP 接口
 
@@ -39,11 +41,11 @@ $env:DB_PASSWORD = "你的 MySQL 密码"
 | 新增商品 | `POST /api/products` | JSON：`{"name":"工作灯","price":35.50}` |
 | 修改商品 | `PUT /api/products/{id}` | 请求体同新增 |
 | 停用商品 | `DELETE /api/products/{id}` | 成功返回 204，历史订单仍可引用 |
-| 订单分页 | `GET /api/orders?page=0&size=20&sort=timeDesc` | 可用 `timeAsc`、`timeDesc`、`priceAsc`、`priceDesc` |
-| 订单详情 | `GET /api/orders/{id}` | 返回完整明细 |
+| 订单分页 | `GET /api/orders?page=0&size=20&sort=idAsc` | 可用 `idAsc`、`timeAsc`、`timeDesc`、`priceAsc`、`priceDesc`；包含已删除订单 |
+| 订单详情 | `GET /api/orders/{id}` | 返回完整明细和 `deletedAt` 状态 |
 | 创建订单 | `POST /api/orders` | JSON：`{"items":{"1":2,"3":1}}`；键是商品 ID，值是数量 |
-| 修改订单 | `PUT /api/orders/{id}` | 用新明细替换旧明细，请求体同创建 |
-| 删除订单 | `DELETE /api/orders/{id}` | 成功返回 204 |
+| 修改订单 | `PUT /api/orders/{id}` | 用新明细替换旧明细；已删除订单不可修改 |
+| 删除订单 | `DELETE /api/orders/{id}` | 成功返回 204；只写入删除时间，订单和明细仍可查询 |
 
 例如使用 PowerShell：
 
@@ -59,8 +61,9 @@ Invoke-RestMethod -Uri "$base/api/orders?page=0&size=10&sort=timeDesc"
 
 ## 数据与实现
 
-- `products` 存商品当前名称、价格和启用状态；`orders` 存下单时间与总价；`order_items` 存商品编号、数量，以及成交时名称和单价的快照。
+- `products` 存商品当前名称、价格和启用状态；`orders` 存下单时间、总价和可为空的 `deleted_at`；`order_items` 存商品编号、数量，以及成交时名称和单价的快照。
 - 商品停用采用软删除，避免破坏历史订单外键。旧订单价格不会随商品调价而变化。
+- 订单删除也采用软删除；`deleted_at` 非空表示“已删除”，列表与详情仍能读取当时的价格和商品明细。此前物理删除的订单无法由该字段恢复。
 - `mapper/` 中的 MyBatis SQL 显式列出字段；输入值由 `#{...}` 绑定。排序字段只由枚举白名单构造，不拼接原始用户输入。
 - `OrderService` 用 Spring `@Transactional` 保证订单头、明细、总价同时成功或回滚；下单时锁定并验证商品。
 - `config/DruidConfig` 创建连接池，可通过 `app.datasource.initial-size`、`min-idle`、`max-active`、`max-wait` 调整。
