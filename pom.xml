@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.learn</groupId>
     <artifactId>learn-backend</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>2.1.0</version>
     <name>learn-backend</name>
     <description>learn-backend</description>
     <url/>

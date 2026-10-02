@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142723">
+  <title>工作室账本 · Studio Ledger</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">S<span>.</span></span>
+        <span><strong>STUDIO LEDGER</strong><small>工作室订单管理</small></span>
+      </div>
+      <div class="nav-caption">工作空间</div>
+      <nav class="nav-list">
+        <button class="nav-item is-active" data-view="overview" aria-current="page"><span class="nav-icon">◫</span>总览</button>
+        <button class="nav-item" data-view="products"><span class="nav-icon">▦</span>商品管理</button>
+        <button class="nav-item" data-view="orders"><span class="nav-icon">▤</span>订单管理</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span class="note-spark">✦</span><strong>把每一笔采购记清楚</strong><p>从商品建档到订单归档，都在这里完成。</p></div>
+        <div class="sidebar-version">STUDIO LEDGER <span>V2.1</span></div>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div class="topbar-left"><span class="breadcrumb">工作空间</span><span class="breadcrumb-separator">/</span><strong id="currentViewName">总览</strong></div>
+        <div class="topbar-right"><span class="connection" id="connectionStatus"><i></i>正在连接</span><span class="topbar-divider"></span><span id="todayText"></span></div>
+      </header>
+
+      <main id="mainContent">
+        <section id="overviewView" class="view" aria-labelledby="overviewTitle">
+          <div class="hero">
+            <div class="hero-copy"><span class="eyebrow"><span class="eyebrow-dot"></span> STUDIO WORKSPACE</span><h1 id="overviewTitle">让每一笔搭建采购<br><em>清晰可见。</em></h1><p>统一管理商品与订单，随时查看工作室的采购记录。</p><div class="hero-actions"><button class="button button-light" id="heroNewOrder">＋ 创建订单</button><button class="button button-ghost-light" data-jump="products">查看商品 <span aria-hidden="true">↗</span></button></div></div>
+            <div class="hero-art" aria-hidden="true"><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><div class="art-card"><span>ORDER OVERVIEW</span><b>账目有序<br>创作从容</b><span class="art-line"></span><span class="art-stamp">SL / 02</span></div></div>
+          </div>
+
+          <div class="section-heading"><div><span class="section-kicker">AT A GLANCE</span><h2>工作室概况</h2></div><span class="section-aside">数据来自当前数据库</span></div>
+          <div class="stat-grid">
+            <article class="stat-card"><div class="stat-top"><span class="stat-symbol symbol-green">▦</span><span class="stat-label">PRODUCTS</span></div><strong id="statProducts">—</strong><span class="stat-description">在售商品</span></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-symbol symbol-orange">▤</span><span class="stat-label">ORDERS</span></div><strong id="statOrders">—</strong><span class="stat-description">累计订单</span></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-symbol symbol-blue">↗</span><span class="stat-label">LATEST ORDER</span></div><strong id="statLatest">—</strong><span class="stat-description">最近一笔订单金额</span></article>
+          </div>
+
+          <div class="overview-grid">
+            <section class="panel recent-panel" aria-labelledby="recentTitle"><div class="panel-heading"><div><span class="section-kicker">ACTIVITY</span><h2 id="recentTitle">近期订单</h2></div><button class="text-link" data-jump="orders">查看全部 <span aria-hidden="true">→</span></button></div><div id="recentOrders" class="recent-list"><p class="loading-copy">正在读取订单…</p></div></section>
+            <section class="panel quick-panel" aria-labelledby="quickTitle"><div class="panel-heading"><div><span class="section-kicker">QUICK START</span><h2 id="quickTitle">快速开始</h2></div></div><p class="quick-intro">先创建商品，再将商品加入订单。订单会保存下单时的名称与价格。</p><button class="quick-action" id="quickNewProduct"><span class="quick-action-icon">＋</span><span><strong>添加新商品</strong><small>录入名称与价格</small></span><span class="quick-arrow">↗</span></button><button class="quick-action" id="quickNewOrder"><span class="quick-action-icon alt">▤</span><span><strong>创建采购订单</strong><small>选择商品与数量</small></span><span class="quick-arrow">↗</span></button></section>
+          </div>
+        </section>
+
+        <section id="productsView" class="view" aria-labelledby="productsTitle" hidden>
+          <div class="page-heading"><div><span class="section-kicker">CATALOG</span><h1 id="productsTitle">商品管理</h1><p>维护工作室搭建所需的物品与价格。</p></div><button class="button button-primary" id="newProductButton">＋ 新增商品</button></div>
+          <div class="panel data-panel"><div class="table-toolbar"><div><h2>商品列表 <span class="count-pill" id="productCount">0</span></h2><p>停用商品仍保留在历史订单中</p></div><div class="toolbar-controls"><label class="toggle-label"><input id="includeInactive" type="checkbox"><span>显示停用</span></label><label class="select-wrap"><span class="sr-only">商品排序</span><select id="productSort"><option value="idAsc">编号升序</option><option value="priceAsc">价格从低到高</option><option value="priceDesc">价格从高到低</option><option value="nameAsc">名称升序</option><option value="nameDesc">名称降序</option></select></label></div></div><div class="table-scroll"><table><thead><tr><th>商品编号</th><th>商品名称</th><th>单价</th><th>状态</th><th class="actions-heading">操作</th></tr></thead><tbody id="productRows"></tbody></table></div><div id="productEmpty" class="empty-state" hidden><span>▦</span><strong>这里还没有商品</strong><p>点击“新增商品”，为工作室建立第一件商品。</p></div><div class="pagination"><span id="productPageInfo">—</span><div><button id="productPrev" class="page-button" aria-label="上一页">←</button><button id="productNext" class="page-button" aria-label="下一页">→</button></div></div></div>
+        </section>
+
+        <section id="ordersView" class="view" aria-labelledby="ordersTitle" hidden>
+          <div class="page-heading"><div><span class="section-kicker">PURCHASES</span><h1 id="ordersTitle">订单管理</h1><p>记录采购明细，随时追溯成交时的商品与价格。</p></div><button class="button button-primary" id="newOrderButton">＋ 创建订单</button></div>
+          <div class="panel data-panel"><div class="table-toolbar"><div><h2>订单列表 <span class="count-pill" id="orderCount">0</span></h2><p>点击“查看详情”可查看完整商品明细</p></div><label class="select-wrap"><span class="sr-only">订单排序</span><select id="orderSort"><option value="timeDesc">最新下单</option><option value="timeAsc">最早下单</option><option value="priceDesc">总价从高到低</option><option value="priceAsc">总价从低到高</option></select></label></div><div class="table-scroll"><table><thead><tr><th>订单编号</th><th>下单时间</th><th>订单金额</th><th class="actions-heading">操作</th></tr></thead><tbody id="orderRows"></tbody></table></div><div id="orderEmpty" class="empty-state" hidden><span>▤</span><strong>还没有采购订单</strong><p>创建订单后，采购记录会显示在这里。</p></div><div class="pagination"><span id="orderPageInfo">—</span><div><button id="orderPrev" class="page-button" aria-label="上一页">←</button><button id="orderNext" class="page-button" aria-label="下一页">→</button></div></div></div>
+        </section>
+      </main>
+      <footer class="site-footer"><span>STUDIO LEDGER · 为创作现场认真记账</span><span>商品 · 订单 · 历史快照</span></footer>
+    </div>
+  </div>
+
+  <dialog id="productDialog" class="form-dialog"><form id="productForm" novalidate><div class="dialog-head"><div><span class="section-kicker">PRODUCT</span><h2 id="productDialogTitle">新增商品</h2></div><button type="button" class="icon-button" data-close="productDialog" aria-label="关闭">×</button></div><p class="dialog-help">填写商品名称与单价，便于下单时快速选择。</p><input id="productId" type="hidden"><label class="field"><span>商品名称</span><input id="productName" name="name" type="text" maxlength="120" placeholder="例如：工作灯" required></label><label class="field"><span>商品单价</span><span class="price-input"><span>¥</span><input id="productPrice" name="price" type="number" min="0" max="9999999999.99" step="0.01" placeholder="0.00" required></span></label><p class="form-error" id="productFormError" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button button-subtle" data-close="productDialog">取消</button><button type="submit" class="button button-primary" id="productSubmit">保存商品</button></div></form></dialog>
+
+  <dialog id="orderDialog" class="form-dialog order-dialog"><form id="orderForm" novalidate><div class="dialog-head"><div><span class="section-kicker">ORDER</span><h2 id="orderDialogTitle">创建订单</h2></div><button type="button" class="icon-button" data-close="orderDialog" aria-label="关闭">×</button></div><p class="dialog-help">选择商品与数量；订单金额将按当前商品价格自动计算。</p><input id="orderId" type="hidden"><div class="line-items-head"><span>商品明细</span><button type="button" class="text-link" id="addOrderItem">＋ 添加商品</button></div><div id="orderItemRows" class="line-items"></div><div class="order-total"><span>预计总价<small>以服务端最终计算为准</small></span><strong id="orderTotalPreview">¥0.00</strong></div><p class="form-error" id="orderFormError" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button button-subtle" data-close="orderDialog">取消</button><button type="submit" class="button button-primary" id="orderSubmit">保存订单</button></div></form></dialog>
+
+  <dialog id="detailDialog" class="detail-dialog"><div class="dialog-head"><div><span class="section-kicker">ORDER DETAIL</span><h2 id="detailTitle">订单详情</h2></div><button type="button" class="icon-button" data-close="detailDialog" aria-label="关闭">×</button></div><div id="detailContent"></div><div class="detail-actions"><button type="button" class="button button-subtle" data-close="detailDialog">关闭</button><button type="button" class="button button-primary" id="detailEdit">修改订单</button></div></dialog>
+
+  <dialog id="confirmDialog" class="confirm-dialog"><div class="confirm-icon">!</div><h2 id="confirmTitle">确认操作</h2><p id="confirmMessage"></p><div class="dialog-actions"><button type="button" class="button button-subtle" id="confirmCancel">取消</button><button type="button" class="button button-danger" id="confirmAccept">确认</button></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Docker Compose 本机密码文件
+.env

@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请先在 .env 设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: studio_order
+      MYSQL_USER: studio_app
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?请先在 .env 设置 MYSQL_APP_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - studio_mysql_data:/var/lib/mysql
+      - ./src/main/resources/db/schema-mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root --password=\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DB_URL: "jdbc:mysql://db:3306/studio_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8"
+      DB_USERNAME: studio_app
+      DB_PASSWORD: ${MYSQL_APP_PASSWORD:?请先在 .env 设置 MYSQL_APP_PASSWORD}
+      APP_CONSOLE_ENABLED: "false"
+      TZ: Asia/Shanghai
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  studio_mysql_data:

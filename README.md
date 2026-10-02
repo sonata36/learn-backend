@@ -1,5 +1,7 @@
 # 工作室订单管理系统
 
+当前版本：**2.1.0**。在 2.0.0 的 MyBatis、Druid、分页和 HTTP API 基础上，加入前端可视化页面及 Docker Compose 部署配置。
+
 Java 21 + Spring Boot 4 的商品与订单记账项目。当前业务读写使用 **MyBatis**，数据库连接由 **Druid** 管理，提供 REST API 和可选的控制台菜单。MySQL 持久化数据；测试使用 H2 的 MySQL 兼容模式。原有 `dao/` 与 `util/JdbcUtil` 保留为 1.0.0 阶段的 JDBC 学习代码，当前 Service 不再调用它们。
 
 ## 准备数据库
@@ -15,6 +17,16 @@ $env:DB_PASSWORD = "你的 MySQL 密码"
 ```
 
 默认启动 HTTP 服务，地址为 `http://localhost:8080`。若还想使用旧控制台菜单，在运行配置中加入 `APP_CONSOLE_ENABLED=true`，或在命令行加 `--app.console.enabled=true`。控制台菜单会占用标准输入。
+
+## 网页界面
+
+启动后在浏览器打开 `http://localhost:8080/`。页面提供总览、商品新增/修改/停用、商品排序分页、订单创建/修改/删除、订单排序分页和明细查看。页面使用浏览器原生 HTML、CSS、JavaScript，无需安装 Node.js 或单独构建前端。
+
+前端文件位于 `src/main/resources/static/`，构建时会进入 Spring Boot JAR。页面用相对于当前站点的 `api/` 地址访问后端；之后放入 Docker 时可让前后端通过同一个服务端口访问，无需修改浏览器端 API 地址。数据库连接需用容器可访问的 `DB_URL`，不能在容器里把 `localhost` 当作宿主机 MySQL。
+
+## Docker Desktop 部署
+
+项目已提供 `Dockerfile`、`compose.yaml` 和 `.env.example`，可一起启动应用与 MySQL。PowerShell 下的配置、启动、日志、数据持久化和故障排查步骤见 [Docker 部署指南](DOCKER_DEPLOY.md)。
 
 ## HTTP 接口
 
